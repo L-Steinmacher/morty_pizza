@@ -1,73 +1,94 @@
-"""The purpose of this exercise is to find how many Pizzas Morty can buy for a given combination of ingredients. 
-
-A Pizza consists of the following ingredients: Crust, Seasoning, Sauce, Veggies, and Cheese
-
-Morty's favourite combination and in this preference order(Crust is more important than Seasoning and so on):
-
-Crust → Pan
-Seasoning → Yes
-Sauce → Tomato
-Veggies → Broccoli
-Cheese → No
-
-
-It’s also possible that multiple Pizza combinations are available in the same quantity, in that case, we resolve it by picking the group
-that’s "closest" to Morty's preference.
-
-The definition of closest here being:
-1. Count of Pizzas available with a given combination of ingredients. If a combination has a higher count even if it isn't Morty's preference, it will be picked.
-2. The ingredients are matched in the preference order mentioned above(Crust → Seasoning → Sauce → Veggies → Cheese),
-   and one that has the first mismatching item from Morty's preference is rejected.
-3. If the items still match, pick the one that was seen first.
-
-
-Let’s say we got:
-
-A. (C: Pan,       Se: Yes, Sa: Tomato,  V: Broccoli, C: No)  → 3
-B. (C: Thin-Crust Se: No,  Sa: Mayo,    V: Broccoli, C: No)  → 3
-C. (C: Pan,       Se: Yes, Sa: Tomato,  V: Onion,    C: Yes) → 3
-
-In the above example, A has the same count as B and C, but as A is also the same as Morty's preference, it’s picked over others.
-
-Let’s take a more complicated example:
-
-A. (C: Thin-Crust, Se: Yes, Sa: Mayo,   V: Broccoli, C: No)  → 3
-B. (C: Pan,        Se: Yes, Sa: Tomato, V: Onion,    C: Yes) → 3
-C. (C: Pan,        Se: Yes, Sa: Mayo,   V: Broccoli, C: No)  → 4
-D. (C: Pan,        Se: Yes, Sa: Tomato, V: Broccoli, C: Yes) → 4 (winner)
-
-
-Here A and B are already out of the race because of their lower counts(point 1 above),
-the tiebreaker between C and D is broken by picking D as when Sauce(Se) is compared,
-D has Tomato that matches Morty's preferred Sauce and C has Mayo, hence it’s rejected.
-
-def find_pizza_combination(combinations: List[Tuple[Dict[str, str], int]]) →Dict[str, str]:
-   ...
-   
-`groups` will be a List of tuples, where the first item in tuple will be the dictionary containing the group and the second item will be count.
-
-[
-    ({'crust': 'Pan', 'seasoning': 'No', 'sauce': 'Mayo', 'veggies': 'Broccoli', 'cheese': 'No'}, 4),
-    ({'crust': 'Thin-Crust', 'seasoning': 'No', 'sauce': 'Tomato', 'veggies': 'Broccoli', 'cheese': 'No'}, 2),
-]
-
-For the above input the output should be:
-
-{'crust': 'Pan', 'seasoning': 'No', 'sauce': 'Mayo', 'veggies': 'Broccoli', 'cheese': 'No'}
-
-The solution will be evaluated for:
-
-1. Correctness
-2. Readability
-3. Performance
-"""
-
 from typing import Dict, List, Tuple
 
 
 def find_pizza_combination(combinations: List[Tuple[Dict[str, str], int]]) -> Dict[str, str]:
-    print(combinations[0][0])
-    
+    ideal = {
+        'crust': 'Pan',
+        'seasoning': 'Yes',
+        'sauce': 'Tomato',
+        'veggies': 'Broccoli',
+        'cheese': 'No',
+    }
+    pizza_points = {
+        'crust': 5,
+        'seasoning': 4,
+        'sauce': 3,
+        'veggies': 2,
+        'cheese': 1,
+    }
+
+    # Saving the idex of the higest quantities of pizza in possibles
+    # Starting with assuming the first pizza comb is best and will check later
+    possibles = [0]
+    cur_max = combinations[0][1]
+
+    for i in range(1,len(combinations)):
+        quantitie = combinations[i][1]
+        if quantitie > cur_max:
+            cur_max = quantitie
+            possibles = [i]
+        elif quantitie == cur_max:
+            possibles.append(i)
+    # if we got to this point and only one possibility for max ammout of pizzas then we are finished and just return it
+    if len(possibles) == 1:
+        return combinations[possibles[0]][0]
+
+    # The ammount of similarities on the pizza pie!
+    most_similar = 0
+
+    # Pizzas that are cantidates for morty's order
+    msp = {}
+    # Since the list Possibles is a list of indexes we use them as such. IE pi means pizza index.
+    for pi in possibles:
+        cur = combinations[pi][0]
+        cur_similar = 0 # counts similarities before there is a difference of ingredient
+        total_diff = 0 # counts differences from ideal pizza
+        any_diff = False
+        pp_total = 0
+        # Check to see if the pizza is the ideal pizza. If so then return and we are finished.
+        if cur == ideal:
+            return cur
+        for item in cur:
+            if cur[item] == ideal[item] and not any_diff:
+                cur_similar += 1
+                pp_total += pizza_points[item]
+            elif cur[item] != ideal[item]:
+                any_diff = True
+                total_diff -= pizza_points[item]
+            elif cur[item] == ideal[item] and any_diff:
+
+                pp_total += pizza_points[item]
+            else:
+                total_diff -= pizza_points[item]
+            
+        if cur_similar > most_similar:
+            msp = {}
+            msp[pi] = {'similar': cur_similar, 'total_diff': total_diff, 'pp_total': pp_total}
+            # print(f"remap: {msp}")
+            most_similar = cur_similar
+        elif cur_similar == most_similar:
+            msp[pi] = {'similar': cur_similar, 'total_diff': total_diff, 'pp_total': pp_total}
+            # print(f"adding: {msp}")
+    # check to see if only one pizza has most similarities before a change.  if so we are finished.
+    if len(msp) == 1:
+        first = next(iter(msp))
+        return combinations[first][0]
+    else:
+        best_pp = 0
+        best_diff = float('-inf')
+        best_possible = []
+        for pizza in msp:
+            cur_diff = msp[pizza]['total_diff']
+            cur_pp = msp[pizza]['pp_total']
+            if cur_pp > best_pp or cur_diff > best_diff:
+                best_pp = cur_pp
+                best_diff = cur_diff
+                best_possible = []
+                best_possible.append(pizza)
+            elif cur_pp == best_pp and cur_diff == best_diff:
+                best_possible.append(pizza)
+    return combinations[best_possible[0]][0]
+
 
   
 groups_1 = [
@@ -91,8 +112,15 @@ groups_4 = [
     ({'crust': 'Pan', 'seasoning': 'No', 'sauce': 'Tomato', 'veggies': 'Broccoli', 'cheese': 'Yes'}, 3),
     ({'crust': 'Pan', 'seasoning': 'No', 'sauce': 'Tomato', 'veggies': 'Broccoli', 'cheese': 'Yes'}, 3),
 ]
+groups_5 = [
+    ({'crust': 'Thin-Crust', 'seasoning': 'No', 'sauce': 'Mayo', 'veggies': 'Broccoli', 'cheese': 'No'}, 3),
+    ({'crust': 'Pan', 'seasoning': 'No', 'sauce': 'Tomato', 'veggies': 'Cucumber', 'cheese': 'Yes'}, 3),
+    ({'crust': 'Pan', 'seasoning': 'No', 'sauce': 'Tomato', 'veggies': 'Broccoli', 'cheese': 'Yes'}, 3),
+    ({'crust': 'Pan', 'seasoning': 'No', 'sauce': 'Tomato', 'veggies': 'Broccoli', 'cheese': 'No'}, 3),
+]
 
 assert find_pizza_combination(groups_1) == groups_1[0][0]
 assert find_pizza_combination(groups_2) == groups_2[1][0]
 assert find_pizza_combination(groups_3) == groups_3[3][0]
 assert find_pizza_combination(groups_4) == groups_4[2][0] and id(find_pizza_combination(groups_4)) == id(groups_4[2][0])
+assert find_pizza_combination(groups_5) == groups_5[3][0]
